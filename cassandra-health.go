@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/akwirick/go-health/Godeps/_workspace/src/github.com/gocql/gocql"
-	"github.com/akwirick/go-health/Godeps/_workspace/src/github.com/gorilla/mux"
+	"github.com/gocql/gocql"
+	"github.com/gorilla/mux"
 )
 
 var (
@@ -29,12 +29,13 @@ func healthHandler(hostport string) http.Handler {
 		cluster.Consistency = gocql.One
 
 		session, sesErr := cluster.CreateSession()
-		defer session.Close()
 
 		if sesErr != nil {
 			fail(w)
 			return
 		}
+
+		defer session.Close()
 
 		// Execute test query
 		err := session.Query(`SELECT now() FROM system.local`).Exec()
@@ -50,12 +51,14 @@ func healthHandler(hostport string) http.Handler {
 func main() {
 	host := flag.String("host", "127.0.0.1", "Cassandra Host")
 	port := flag.Uint("port", 9042, "CQL Port")
+	listen_port := flag.Uint("listen_port", 19042, "HTTP listen port")
 	flag.Parse()
 
 	hostport := fmt.Sprintf("%v:%v", *host, *port)
+	listenport := fmt.Sprintf(":%v", *listen_port)
 
 	r := mux.NewRouter()
 	r.Handle("/health", healthHandler(hostport))
-	fmt.Println("Starting health check on port 8080,  press ctrl-c to exit")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	fmt.Println("Starting health check on port", listenport, "press ctrl-c to exit")
+	log.Fatal(http.ListenAndServe(listenport, r))
 }
